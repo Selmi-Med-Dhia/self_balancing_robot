@@ -28,7 +28,7 @@ volatile int previousEncoderRCount = 0;
 volatile int previousEncoderLCount = 0;
 volatile int currentPWMR = 0;
 volatile int currentPWML = 0;
-volatile int32_t targetSpeedR = 60000;
+volatile int32_t targetSpeedR = 0;
 volatile int32_t targetSpeedL = 0;
 volatile int32_t previousTargetSpeedR = 0;
 volatile int32_t previousTargetSpeedL = 0;
@@ -44,7 +44,17 @@ const int32_t kpS = 15;
 const int32_t kdS = 5;
 const int32_t kiS = 0;
 
+const int32_t kpB = 500;
+const int32_t kdB = 0;
+const int32_t kiB = 0;
+
+float previousGyroError = 0;
+float gyroIntegral = 0;
+
 float restGyroX = 0.17;
+float targetGyroX = 0.17;
+
+long mainLoopLastTime = 0;
 
 esp_timer_handle_t speedTimer;
 portMUX_TYPE speedMux = portMUX_INITIALIZER_UNLOCKED;
@@ -147,13 +157,22 @@ void setup() {
 
   for(int i=0; i<4; i++){
     pinMode(leds[i], OUTPUT);
+    digitalWrite(leds[i], LOW);
   }
   
   attachInterrupt(digitalPinToInterrupt(encoderRA), encoderRISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderLA), encoderLISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderRB), encoderRISRB, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderLB), encoderLISRB, CHANGE);
+  
+  Wire.begin(25, 26);
 
+  byte status = mpu.begin();
+  while (status != 0) {
+    status = mpu.begin();
+    delay(50);
+  }
+  
   const esp_timer_create_args_t timer_config = {
     .callback = &calculateSpeed,
     .arg = nullptr,
@@ -163,28 +182,21 @@ void setup() {
   
   esp_timer_create(&timer_config, &speedTimer);
   esp_timer_start_periodic(speedTimer, 5000);
-  /*
-  Serial.println("setup initiated");
-  
-  Wire.begin(25, 26);
-
-  byte status = mpu.begin();
-  while (status != 0) {
-    Serial.println("MPU6050 initialization failed!");
-    status = mpu.begin();
-    delay(50);
-  }
-  Serial.println("success");
-  */
 }
 
 void loop() {
-  /*
-  mpu.update();
-  Serial.println(mpu.getAccX());
+  if( micros() - mainLoopLastTime >= 5000){
+    mpu.update();
+    float error = mpu.getAccX() - targetGyroX;
+    float derivative = (error - previousGyroError)*1000 / (micros() - mainLoopLastTime) ;
+    gyroIntegral += error;
 
-  delay(5);
-  */
-  Serial.println(currentSpeedR);
-  delay(10);
+    int32_t correction = (int32_t)( kpB*error + kiB*gyroIntegral + kdB*derivative );
+
+    targetSpeedR = constrain( targetSpeedR + correction, -63000, 63000 );
+    targetSpeedL = constrain( targetSpeedL + correction, -63000, 63000 );
+
+    //Serial.println(targetSpeedR);
+    mainLoopLastTime = micros();
+  }
 }
