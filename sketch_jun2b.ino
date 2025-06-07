@@ -26,17 +26,29 @@ volatile unsigned long speedCalculationPreviousTime = 0;
 volatile unsigned long speedCalculationCurrentTime = 0;
 volatile int previousEncoderRCount = 0;
 volatile int previousEncoderLCount = 0;
+volatile int currentPWMR = 0;
+volatile int currentPWML = 0;
+volatile float targetSpeedR = 0;
+volatile float targetSpeedL = 0;
+volatile float previousTargetSpeedR = 0;
+volatile float previousTargetSpeedL = 0;
+volatile float previousSpeedErrorR = 0;
+volatile float previousSpeedErrorL = 0;
+volatile float SpeedIntegralR = 0;
+volatile float SpeedIntegralL = 0;
 
 const int CPR = 404;
 const int minPWMR = 55;
 const int minPWML = 57;
+const float kpS = 1;
+const float kdS = 0;
+const float kiS = 0;
 
 float restGyroX = 0.17;
 
 esp_timer_handle_t speedTimer;
 portMUX_TYPE speedMux = portMUX_INITIALIZER_UNLOCKED;
 
-volatile int led = 0;
 MPU6050 mpu(Wire);
 
 void IRAM_ATTR encoderRISRA() {
@@ -79,11 +91,54 @@ void IRAM_ATTR calculateSpeed(void *args) {
   if(elapsedTime != 0){
     currentSpeedR = ( (encoderRCount - previousEncoderRCount)*148514.85) / (double)elapsedTime;
     currentSpeedL = ( (encoderLCount - previousEncoderLCount)*148514.85) / (double)elapsedTime;
+
+    float error = targetSpeedR - currentPWMR;
+    float derivative = (error - previousSpeedErrorR)*100000 / elapsedTime;
+    previousSpeedErrorR = error;
+    SpeedIntegralR += error;
+    currentPWMR = (currentPWMR + kpS*error + kiS*SpeedIntegralR + kdS*derivative, -255, 255);
+    speedRight(currentPWMR);
+
+    error = targetSpeedL - currentPWML;
+    derivative = (error - previousSpeedErrorL)*1000 / elapsedTime ;
+    previousSpeedErrorL = error;
+    SpeedIntegralL += error;
+    currentPWML = (currentPWML + kpS*error + kiS*SpeedIntegralL + kdS*derivative, -255, 255);
+    speedLeft(currentPWML);
   }
   speedCalculationPreviousTime = speedCalculationCurrentTime;
   previousEncoderRCount = encoderRCount;
   previousEncoderLCount = encoderLCount;
+
   portEXIT_CRITICAL_ISR(&speedMux);
+}
+
+void speedRight(int pwm){
+  if (abs(pwm) < minPWMR ){
+    analogWrite(motorRb, 0);
+    analogWrite(motorRa, 0);
+  }
+  else if( pwm > 0){
+    analogWrite(motorRb, 0);
+    analogWrite(motorRa, pwm);
+  }else{
+    analogWrite(motorRa, 0);
+    analogWrite(motorRb, abs(pwm));
+  }
+}
+
+void speedLeft(int pwm){
+  if (abs(pwm) < minPWML ){
+    analogWrite(motorLb, 0);
+    analogWrite(motorLa, 0);
+  }
+  else if( pwm > 0){
+    analogWrite(motorLb, 0);
+    analogWrite(motorLa, pwm);
+  }else{
+    analogWrite(motorLa, 0);
+    analogWrite(motorLb, abs(pwm));
+  }
 }
 
 void setup() {
