@@ -1,0 +1,18 @@
+Gyro :
+	SDA = 25
+	SDL = 26
+Motors :
+	MotorLa = 21
+	MotorLb = 19
+	MotorRa = 23
+	MotorRb = 22
+
+	encoderRA = 18
+	encoderRB = 33
+	encoderLA = 4
+	encoderLB = 5
+LEDs :
+	upperLed = 32
+	leftLed = 27
+	rightLed = 13
+	bottomLed = 14
