@@ -20,29 +20,29 @@ int leds[] = {32, 13, 14, 27};
 //global variables
 volatile int encoderRCount = 0;
 volatile int encoderLCount = 0;
-volatile float currentSpeedR = 0;
-volatile float currentSpeedL = 0;
-volatile unsigned long speedCalculationPreviousTime = 0;
-volatile unsigned long speedCalculationCurrentTime = 0;
+volatile int32_t currentSpeedR = 0;
+volatile int32_t currentSpeedL = 0;
+volatile int32_t speedCalculationPreviousTime = 0;
+volatile int32_t speedCalculationCurrentTime = 0;
 volatile int previousEncoderRCount = 0;
 volatile int previousEncoderLCount = 0;
 volatile int currentPWMR = 0;
 volatile int currentPWML = 0;
-volatile float targetSpeedR = 0;
-volatile float targetSpeedL = 0;
-volatile float previousTargetSpeedR = 0;
-volatile float previousTargetSpeedL = 0;
-volatile float previousSpeedErrorR = 0;
-volatile float previousSpeedErrorL = 0;
-volatile float SpeedIntegralR = 0;
-volatile float SpeedIntegralL = 0;
+volatile int32_t targetSpeedR = 60000;
+volatile int32_t targetSpeedL = 0;
+volatile int32_t previousTargetSpeedR = 0;
+volatile int32_t previousTargetSpeedL = 0;
+volatile int32_t previousSpeedErrorR = 0;
+volatile int32_t previousSpeedErrorL = 0;
+volatile int32_t SpeedIntegralR = 0;
+volatile int32_t SpeedIntegralL = 0;
 
 const int CPR = 404;
 const int minPWMR = 55;
 const int minPWML = 57;
-const float kpS = 1;
-const float kdS = 0;
-const float kiS = 0;
+const int32_t kpS = 15;
+const int32_t kdS = 5;
+const int32_t kiS = 0;
 
 float restGyroX = 0.17;
 
@@ -86,25 +86,26 @@ void IRAM_ATTR encoderLISRB() {
 void IRAM_ATTR calculateSpeed(void *args) {
   portENTER_CRITICAL_ISR(&speedMux);
   speedCalculationCurrentTime = micros();
-  unsigned long elapsedTime = speedCalculationCurrentTime - speedCalculationPreviousTime;
+  int32_t elapsedTime = speedCalculationCurrentTime - speedCalculationPreviousTime;
 
   if(elapsedTime != 0){
-    currentSpeedR = ( (encoderRCount - previousEncoderRCount)*148514.85) / (double)elapsedTime;
-    currentSpeedL = ( (encoderLCount - previousEncoderLCount)*148514.85) / (double)elapsedTime;
-
-    float error = targetSpeedR - currentPWMR;
-    float derivative = (error - previousSpeedErrorR)*100000 / elapsedTime;
+    currentSpeedR = ( (encoderRCount - previousEncoderRCount)*14851485 ) / elapsedTime; // unit = 0.01 RPM, every 100 = 1RPM
+    currentSpeedL = ( (encoderLCount - previousEncoderLCount)*14851485 ) / elapsedTime;
+    
+    int32_t error = targetSpeedR - currentSpeedR;
+    int32_t derivative = (error - previousSpeedErrorR)*100000 / elapsedTime;
     previousSpeedErrorR = error;
     SpeedIntegralR += error;
-    currentPWMR = (currentPWMR + kpS*error + kiS*SpeedIntegralR + kdS*derivative, -255, 255);
+    currentPWMR = constrain(currentPWMR + ( kpS*error + kiS*SpeedIntegralR + kdS*derivative )/6000, -255, 255);
     speedRight(currentPWMR);
 
-    error = targetSpeedL - currentPWML;
-    derivative = (error - previousSpeedErrorL)*1000 / elapsedTime ;
+    error = targetSpeedL - currentSpeedL;
+    derivative = (error - previousSpeedErrorL)*100000 / elapsedTime ;
     previousSpeedErrorL = error;
     SpeedIntegralL += error;
-    currentPWML = (currentPWML + kpS*error + kiS*SpeedIntegralL + kdS*derivative, -255, 255);
+    currentPWML = constrain(currentPWML + ( kpS*error + kiS*SpeedIntegralL + kdS*derivative )/6000, -255, 255);
     speedLeft(currentPWML);
+
   }
   speedCalculationPreviousTime = speedCalculationCurrentTime;
   previousEncoderRCount = encoderRCount;
