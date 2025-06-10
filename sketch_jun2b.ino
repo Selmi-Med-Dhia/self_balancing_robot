@@ -30,6 +30,8 @@ volatile int currentPWMR = 0;
 volatile int currentPWML = 0;
 volatile int32_t targetSpeedR = 0;
 volatile int32_t targetSpeedL = 0;
+volatile int32_t turningSpeedR = 0;
+volatile int32_t turningSpeedL = 0;
 volatile int32_t previousTargetSpeedR = 0;
 volatile int32_t previousTargetSpeedL = 0;
 volatile int32_t previousSpeedErrorR = 0;
@@ -44,15 +46,15 @@ const int32_t kpS = 15;
 const int32_t kdS = 5;
 const int32_t kiS = 0;
 
-const int32_t kpB = 500;
-const int32_t kdB = 0;
-const int32_t kiB = 0;
+const int32_t kpB = 50;
+const int32_t kdB = 300;
+const int32_t kiB = 100;
 
-float previousGyroError = 0;
-float gyroIntegral = 0;
+float previousAngleError = 0;
+float AngleIntegral = 0;
 
-float restGyroX = 0.17;
-float targetGyroX = 0.17;
+float restAngle = 9.10;
+float targetAngle = 9.10;
 
 long mainLoopLastTime = 0;
 
@@ -159,7 +161,13 @@ void setup() {
     pinMode(leds[i], OUTPUT);
     digitalWrite(leds[i], LOW);
   }
-  
+  /*
+  for(int i=0; i<10000; i++){
+    digitalWrite(leds[i%4], LOW);
+    digitalWrite(leds[(i+1)%4], HIGH);
+    delay(((i%4)*4 - 6 )*10 + 100);
+  }
+  */
   attachInterrupt(digitalPinToInterrupt(encoderRA), encoderRISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderLA), encoderLISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderRB), encoderRISRB, CHANGE);
@@ -185,18 +193,49 @@ void setup() {
 }
 
 void loop() {
-  if( micros() - mainLoopLastTime >= 5000){
+  if( micros() - mainLoopLastTime >= 2000){
     mpu.update();
-    float error = mpu.getAccX() - targetGyroX;
-    float derivative = (error - previousGyroError)*1000 / (micros() - mainLoopLastTime) ;
-    gyroIntegral += error;
+    float error = (-mpu.getAngleY()) - targetAngle;
+    float derivative = (error - previousAngleError)*1000 / (micros() - mainLoopLastTime) ;
+    AngleIntegral = constrain( AngleIntegral + error, -100, 100) ;
 
-    int32_t correction = (int32_t)( kpB*error + kiB*gyroIntegral + kdB*derivative );
+    int32_t correction = (int32_t)( kpB*error + kiB*AngleIntegral + kdB*derivative );
 
-    targetSpeedR = constrain( targetSpeedR + correction, -63000, 63000 );
-    targetSpeedL = constrain( targetSpeedL + correction, -63000, 63000 );
-
-    //Serial.println(targetSpeedR);
+    targetSpeedR = constrain( turningSpeedR + correction, -63000, 63000 );
+    targetSpeedL = constrain( turningSpeedL + correction, -63000, 63000 );
+    /*
+    if(targetSpeedL != previousTargetSpeedL ){
+      currentPWML = (int)( currentPWML * ( (float)targetSpeedL / currentSpeedL) ) ;
+      currentPWMR = (int)( currentPWMR * ( (float)targetSpeedR / currentSpeedR) ) ;
+      speedRight(currentPWMR);
+      speedLeft(currentPWML);
+      previousTargetSpeedL = targetSpeedL;
+      previousTargetSpeedR = targetSpeedR;
+    }
+    */
+    /*
+    if(targetSpeedL > 0){
+      targetSpeedR = constrain( targetSpeedR, 4000, 63000 );
+      targetSpeedL = constrain( targetSpeedL, 4000, 63000 );
+    }else{
+      targetSpeedR = constrain( targetSpeedR, -63000, -4000 );
+      targetSpeedL = constrain( targetSpeedL, -63000, -4000 );
+    }
+    */
     mainLoopLastTime = micros();
+    Serial.println(targetSpeedR);
+    // fail safe
+    if(abs(mpu.getAngleY() - restAngle) > 50){
+      esp_timer_stop(speedTimer);
+      for(int i=0; i<4; i++){
+        speedRight(0);
+        speedLeft(0);
+      }
+      for(int i=0; i<10000; i++){
+        digitalWrite(leds[i%4], LOW);
+        digitalWrite(leds[(i+1)%4], HIGH);
+        delay(((i%4)*4 - 6 )*10 + 100);
+      }
+    }
   }
 }
