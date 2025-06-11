@@ -30,8 +30,8 @@ volatile int currentPWMR = 0;
 volatile int currentPWML = 0;
 volatile int32_t targetSpeedR = 0;
 volatile int32_t targetSpeedL = 0;
-volatile int32_t turningSpeedR = 0;
-volatile int32_t turningSpeedL = 0;
+volatile int32_t turningSpeedR = 5000;
+volatile int32_t turningSpeedL = -5000;
 volatile int32_t previousTargetSpeedR = 0;
 volatile int32_t previousTargetSpeedL = 0;
 volatile int32_t previousSpeedErrorR = 0;
@@ -57,8 +57,8 @@ const int32_t kiB = 170;
 float previousAngleError = 0;
 float AngleIntegral = 0;
 
-float restAngle = 6.90;
-float targetAngle = 6.90;
+float restAngle = 8.80;
+float targetAngle = 8.80;
 
 long mainLoopLastTime = 0;
 
@@ -197,7 +197,7 @@ void setup() {
 }
 
 void loop() {
-  if( micros() - mainLoopLastTime >= 2000){
+  if( micros() - mainLoopLastTime >= 1000){
     mpu.update();
     float error = (-mpu.getAngleY()) - targetAngle;
     float derivative = (error - previousAngleError)*1000 / (micros() - mainLoopLastTime) ;
@@ -229,7 +229,7 @@ void loop() {
     }
     */
     mainLoopLastTime = micros();
-    Serial.println(targetSpeedL);
+    Serial.println(-mpu.getAngleY() - restAngle);
     // fail safe
     if(-mpu.getAngleY() - restAngle > 50 || -mpu.getAngleY() - restAngle < -40 ){
       esp_timer_stop(speedTimer);
