@@ -46,15 +46,19 @@ const int32_t kpS = 15;
 const int32_t kdS = 5;
 const int32_t kiS = 0;
 
-const int32_t kpB = 50;
-const int32_t kdB = 300;
-const int32_t kiB = 100;
+//const int32_t kpB = 1000;
+//const int32_t kdB = 700;
+//const int32_t kiB = 200;
+
+const int32_t kpB = 3200;
+const int32_t kdB = 800;
+const int32_t kiB = 170;
 
 float previousAngleError = 0;
 float AngleIntegral = 0;
 
-float restAngle = 9.10;
-float targetAngle = 9.10;
+float restAngle = 6.85;
+float targetAngle = 6.85;
 
 long mainLoopLastTime = 0;
 
@@ -225,11 +229,12 @@ void loop() {
     mainLoopLastTime = micros();
     Serial.println(targetSpeedR);
     // fail safe
-    if(abs(mpu.getAngleY() - restAngle) > 50){
+    if(mpu.getAngleY() - restAngle > 50 || mpu.getAngleY() - restAngle < -40 ){
       esp_timer_stop(speedTimer);
-      for(int i=0; i<4; i++){
+      for(int i=0; i<10; i++){
         speedRight(0);
         speedLeft(0);
+        delay(10);
       }
       for(int i=0; i<10000; i++){
         digitalWrite(leds[i%4], LOW);
