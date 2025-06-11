@@ -50,15 +50,15 @@ const int32_t kiS = 0;
 //const int32_t kdB = 700;
 //const int32_t kiB = 200;
 
-const int32_t kpB = 3200;
+const int32_t kpB = 3500;
 const int32_t kdB = 800;
 const int32_t kiB = 170;
 
 float previousAngleError = 0;
 float AngleIntegral = 0;
 
-float restAngle = 6.85;
-float targetAngle = 6.85;
+float restAngle = 6.90;
+float targetAngle = 6.90;
 
 long mainLoopLastTime = 0;
 
@@ -201,22 +201,24 @@ void loop() {
     mpu.update();
     float error = (-mpu.getAngleY()) - targetAngle;
     float derivative = (error - previousAngleError)*1000 / (micros() - mainLoopLastTime) ;
-    AngleIntegral = constrain( AngleIntegral + error, -100, 100) ;
+    AngleIntegral = constrain( AngleIntegral + error, -150, 150) ;
 
     int32_t correction = (int32_t)( kpB*error + kiB*AngleIntegral + kdB*derivative );
 
     targetSpeedR = constrain( turningSpeedR + correction, -63000, 63000 );
     targetSpeedL = constrain( turningSpeedL + correction, -63000, 63000 );
+
     /*
-    if(targetSpeedL != previousTargetSpeedL ){
-      currentPWML = (int)( currentPWML * ( (float)targetSpeedL / currentSpeedL) ) ;
-      currentPWMR = (int)( currentPWMR * ( (float)targetSpeedR / currentSpeedR) ) ;
+    if(targetSpeedL != previousTargetSpeedL && abs(targetSpeedL) == 63000){
+      currentPWML = ( targetSpeedL > 0 )?255 : -255 ;
+      currentPWMR = ( targetSpeedR > 0 )?255 : -255 ;
       speedRight(currentPWMR);
       speedLeft(currentPWML);
       previousTargetSpeedL = targetSpeedL;
       previousTargetSpeedR = targetSpeedR;
     }
     */
+
     /*
     if(targetSpeedL > 0){
       targetSpeedR = constrain( targetSpeedR, 4000, 63000 );
@@ -227,9 +229,9 @@ void loop() {
     }
     */
     mainLoopLastTime = micros();
-    Serial.println(targetSpeedR);
+    Serial.println(targetSpeedL);
     // fail safe
-    if(mpu.getAngleY() - restAngle > 50 || mpu.getAngleY() - restAngle < -40 ){
+    if(-mpu.getAngleY() - restAngle > 50 || -mpu.getAngleY() - restAngle < -40 ){
       esp_timer_stop(speedTimer);
       for(int i=0; i<10; i++){
         speedRight(0);
