@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RC Car Control</title>
+    <style>
+        body {
+            background-color: darkcyan;
+            font-family: Verdana;
+            margin: 0;
+            padding: 0;
+        }
+
+        .slider-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .slider-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            writing-mode: bt-lr; /* vertical slider for WebKit browsers */
+            -webkit-appearance: slider-vertical;
+            width: 60px;
+            height: 300px;
+            margin: 10px;
+            transform: rotate(180deg); /* flip for intuitive up = forward */
+        }
+
+        output {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="slider-container">
+        <div class="slider-wrapper">
+            <input type="range" id="L" min="-600" max="600" value="0" oninput="changeSpeedLeft(); updateLeftVal()" disabled >
+            <output id="Lval">0</output>
+        </div>
+        <h2 style="color: rgb(168, 1, 1); margin:0;padding:0">waiting for connection</h2>
+        <div class="slider-wrapper">
+            <input type="range" id="R" min="-600" max="600" value="0" oninput="changeSpeedRight(); updateRightVal()" disabled >
+            <output id="Rval">0</output>
+        </div>
+    </div>
+
+    <script>
+        let socket = new WebSocket('ws://192.168.82.171:81');
+
+        socket.onopen = () => {
+            console.log('WebSocket connection established');
+            document.getElementById("L").disabled = false;
+            document.getElementById("R").disabled = false;
+            document.querySelector("h2").textContent = "connected";
+            setTimeout(() => {
+                document.querySelector("h2").textContent = "";
+            }, 1000);
+        };
+
+        socket.onmessage = (event) => {
+            alert(event.data);
+        };
+
+        function changeSpeedLeft() {
+            const value = document.getElementById("L").value;
+            socket.send("L" + value);
+        }
+
+        function changeSpeedRight() {
+            const value = document.getElementById("R").value;
+            socket.send("R" + value);
+        }
+
+        function updateLeftVal() {
+            document.getElementById("Lval").textContent = document.getElementById("L").value;
+        }
+
+        function updateRightVal() {
+            document.getElementById("Rval").textContent = document.getElementById("R").value;
+        }
+    </script>
+</body>
+</html>

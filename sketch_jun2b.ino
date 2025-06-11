@@ -30,8 +30,8 @@ volatile int currentPWMR = 0;
 volatile int currentPWML = 0;
 volatile int32_t targetSpeedR = 0;
 volatile int32_t targetSpeedL = 0;
-volatile int32_t turningSpeedR = 5000;
-volatile int32_t turningSpeedL = -5000;
+volatile int32_t turningSpeedR = 0;
+volatile int32_t turningSpeedL = 0;
 volatile int32_t previousTargetSpeedR = 0;
 volatile int32_t previousTargetSpeedL = 0;
 volatile int32_t previousSpeedErrorR = 0;
@@ -51,7 +51,7 @@ const int32_t kiS = 0;
 //const int32_t kiB = 200;
 
 const int32_t kpB = 3500;
-const int32_t kdB = 800;
+const int32_t kdB = 1200;
 const int32_t kiB = 170;
 
 float previousAngleError = 0;
