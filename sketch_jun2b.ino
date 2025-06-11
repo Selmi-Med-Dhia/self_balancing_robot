@@ -1,6 +1,8 @@
 #include <Wire.h>
 #include <MPU6050_light.h>
 #include "esp_timer.h"
+#include <WiFi.h>
+#include <WebSocketsServer.h>
 
 // motor pins
 int motorLa = 21;
@@ -66,6 +68,18 @@ esp_timer_handle_t speedTimer;
 portMUX_TYPE speedMux = portMUX_INITIALIZER_UNLOCKED;
 
 MPU6050 mpu(Wire);
+
+const char* ssid = "I like balls";
+const char* password = "mo3adh likes balls";
+
+WebSocketsServer webSocket = WebSocketsServer(81);
+
+IPAddress local_IP(192,168,26,171);
+IPAddress gateway(192,168,26,51);
+IPAddress subnet(255,255,255,0);
+
+int leftSlider = 0;
+int rightSlider = 0;
 
 void IRAM_ATTR encoderRISRA() {
   if(digitalRead(encoderRB) == digitalRead(encoderRA)){
@@ -158,12 +172,62 @@ void speedLeft(int pwm){
   }
 }
 
-void setup() {
-  Serial.begin(115200);
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+  if (type == WStype_TEXT) {
+    String message = String((char*)payload);
+    //Serial.println(rightSlider);
 
+    if (message[0] == 'R') {
+      rightSlider = message.substring(1).toInt();
+    } else if (message[0] == 'L'){
+      leftSlider = message.substring(1).toInt();
+    }
+    if(abs(leftSlider - rightSlider) < 100){
+      targetAngle = restAngle - min(rightSlider, leftSlider)*0.001;
+      turningSpeedL = 0;
+      turningSpeedR = 0;
+    }else{
+      targetAngle = restAngle;
+      turningSpeedL = (leftSlider - rightSlider)*10;
+      turningSpeedR = -turningSpeedL;
+    }
+  }
+}
+
+void setup() {
   for(int i=0; i<4; i++){
     pinMode(leds[i], OUTPUT);
     digitalWrite(leds[i], LOW);
+  }
+
+  Serial.begin(115200);
+
+  WiFi.config(local_IP, gateway, subnet);
+  WiFi.begin(ssid, password);
+  int i=0;
+  while (WiFi.status() != WL_CONNECTED) {
+    digitalWrite(leds[i], LOW);
+    digitalWrite(leds[(i+1)%4], HIGH);
+    delay(80);
+    i = (i+1)%4;
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi!");
+  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.gatewayIP());
+  Serial.println(WiFi.subnetMask());
+
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+  for(int j=0; j<3; j++){
+    for(int i=0; i<4; i++){
+      digitalWrite(leds[i], LOW);
+    }
+    delay(100);
+    for(int i=0; i<4; i++){
+      digitalWrite(leds[i], HIGH);
+    }
+    delay(100);
   }
   /*
   for(int i=0; i<10000; i++){
@@ -197,6 +261,7 @@ void setup() {
 }
 
 void loop() {
+  webSocket.loop();
   if( micros() - mainLoopLastTime >= 1000){
     mpu.update();
     float error = (-mpu.getAngleY()) - targetAngle;
@@ -229,10 +294,13 @@ void loop() {
     }
     */
     mainLoopLastTime = micros();
-    Serial.println(-mpu.getAngleY() - restAngle);
+    //Serial.println(-mpu.getAngleY() - restAngle);
+
     // fail safe
+    
     if(-mpu.getAngleY() - restAngle > 50 || -mpu.getAngleY() - restAngle < -40 ){
       esp_timer_stop(speedTimer);
+      webSocket.broadcastTXT("0");
       for(int i=0; i<10; i++){
         speedRight(0);
         speedLeft(0);
