@@ -54,15 +54,19 @@ const int32_t kiS = 0;
 //const int32_t kdB = 700;
 //const int32_t kiB = 200;
 
-const int32_t kpB = 3500;
-const int32_t kdB = 1200;
-const int32_t kiB = 170;
+int32_t kpB = 1500; // 2000;
+int32_t kdB = 2000; // 300;
+int32_t kiB = 50; // 170;
+int32_t oldkiB = 50;
+int32_t burstAngle = 500;
+bool stopped = false;
+
 
 float previousAngleError = 0;
 float AngleIntegral = 0;
 
-float restAngle = 8.80;
-float targetAngle = 8.80;
+float restAngle = 8.83;
+float targetAngle = 8.83;
 
 long mainLoopLastTime = 0;
 
@@ -76,12 +80,40 @@ const char* password = "mo3adh likes balls";
 
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-IPAddress local_IP(192,168,26,171);
-IPAddress gateway(192,168,26,51);
+IPAddress local_IP(192,168,9,171);
+IPAddress gateway(192,168,9,45);
 IPAddress subnet(255,255,255,0);
 
 int leftSlider = 0;
 int rightSlider = 0;
+
+void speedRight(int pwm){
+  if (abs(pwm) < minPWMR ){
+    analogWrite(motorRb, 0);
+    analogWrite(motorRa, 0);
+  }
+  else if( pwm > 0){
+    analogWrite(motorRb, 0);
+    analogWrite(motorRa, pwm);
+  }else{
+    analogWrite(motorRa, 0);
+    analogWrite(motorRb, abs(pwm));
+  }
+}
+
+void speedLeft(int pwm){
+  if (abs(pwm) < minPWML ){
+    analogWrite(motorLb, 0);
+    analogWrite(motorLa, 0);
+  }
+  else if( pwm > 0){
+    analogWrite(motorLb, 0);
+    analogWrite(motorLa, pwm);
+  }else{
+    analogWrite(motorLa, 0);
+    analogWrite(motorLb, abs(pwm));
+  }
+}
 
 void IRAM_ATTR encoderRISRA() {
   if(digitalRead(encoderRB) == digitalRead(encoderRA)){
@@ -146,52 +178,39 @@ void IRAM_ATTR calculateSpeed(void *args) {
   portEXIT_CRITICAL_ISR(&speedMux);
 }
 
-void speedRight(int pwm){
-  if (abs(pwm) < minPWMR ){
-    analogWrite(motorRb, 0);
-    analogWrite(motorRa, 0);
-  }
-  else if( pwm > 0){
-    analogWrite(motorRb, 0);
-    analogWrite(motorRa, pwm);
-  }else{
-    analogWrite(motorRa, 0);
-    analogWrite(motorRb, abs(pwm));
-  }
-}
-
-void speedLeft(int pwm){
-  if (abs(pwm) < minPWML ){
-    analogWrite(motorLb, 0);
-    analogWrite(motorLa, 0);
-  }
-  else if( pwm > 0){
-    analogWrite(motorLb, 0);
-    analogWrite(motorLa, pwm);
-  }else{
-    analogWrite(motorLa, 0);
-    analogWrite(motorLb, abs(pwm));
-  }
-}
-
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   if (type == WStype_TEXT) {
     String message = String((char*)payload);
-    //Serial.println(rightSlider);
 
-    if (message[0] == 'R') {
-      rightSlider = message.substring(1).toInt();
-    } else if (message[0] == 'L'){
-      leftSlider = message.substring(1).toInt();
-    }
-    if(abs(leftSlider - rightSlider) < 100){
-      targetAngle = restAngle - min(rightSlider, leftSlider)*0.001;
-      turningSpeedL = 0;
-      turningSpeedR = 0;
-    }else{
+    if (message[0] == 'P') {
+      kpB = message.substring(1).toInt();
+    } else if (message[0] == 'I') {
+      kiB = message.substring(1).toInt();
+      oldkiB = kiB;
+    } else if (message[0] == 'D') {
+      kdB = message.substring(1).toInt();
+    } else if (message[0] == 'A') {
+      restAngle = message.substring(1).toInt()/100.0;
       targetAngle = restAngle;
-      turningSpeedL = (leftSlider - rightSlider)*10;
-      turningSpeedR = -turningSpeedL;
+    } else if (message[0] == 'B') {
+      burstAngle = message.substring(1).toInt();
+    } else if (message[0] == 'S') {
+      stopped = !stopped;
+    }else{
+      if (message[0] == 'R') {
+        rightSlider = message.substring(1).toInt();
+      } else if (message[0] == 'L'){
+        leftSlider = message.substring(1).toInt();
+      }
+      if(abs(leftSlider - rightSlider) < 100){
+        targetAngle = restAngle - min(rightSlider, leftSlider)*0.001;
+        turningSpeedL = 0;
+        turningSpeedR = 0;
+      }else{
+        targetAngle = restAngle;
+        turningSpeedL = (leftSlider - rightSlider)*10;
+        turningSpeedR = -turningSpeedL;
+      }
     }
   }
 }
@@ -231,13 +250,6 @@ void setup() {
     }
     delay(100);
   }
-  /*
-  for(int i=0; i<10000; i++){
-    digitalWrite(leds[i%4], LOW);
-    digitalWrite(leds[(i+1)%4], HIGH);
-    delay(((i%4)*4 - 6 )*10 + 100);
-  }
-  */
   attachInterrupt(digitalPinToInterrupt(encoderRA), encoderRISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderLA), encoderLISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderRB), encoderRISRB, CHANGE);
@@ -265,41 +277,33 @@ void setup() {
 void loop() {
   webSocket.loop();
   if( micros() - mainLoopLastTime >= 1000){
-    mpu.update();
-    float error = (-mpu.getAngleY()) - targetAngle;
-    float derivative = (error - previousAngleError)*1000 / (micros() - mainLoopLastTime) ;
-    AngleIntegral = constrain( AngleIntegral + error, -150, 150) ;
-
-    int32_t correction = (int32_t)( kpB*error + kiB*AngleIntegral + kdB*derivative );
-
-    targetSpeedR = constrain( turningSpeedR + correction, -63000, 63000 );
-    targetSpeedL = constrain( turningSpeedL + correction, -63000, 63000 );
-
-    /*
-    if(targetSpeedL != previousTargetSpeedL && abs(targetSpeedL) == 63000){
-      currentPWML = ( targetSpeedL > 0 )?255 : -255 ;
-      currentPWMR = ( targetSpeedR > 0 )?255 : -255 ;
-      speedRight(currentPWMR);
-      speedLeft(currentPWML);
-      previousTargetSpeedL = targetSpeedL;
-      previousTargetSpeedR = targetSpeedR;
-    }
-    */
-
-    /*
-    if(targetSpeedL > 0){
-      targetSpeedR = constrain( targetSpeedR, 4000, 63000 );
-      targetSpeedL = constrain( targetSpeedL, 4000, 63000 );
+    if (stopped){
+      speedLeft(0);
+      speedRight(0);
     }else{
-      targetSpeedR = constrain( targetSpeedR, -63000, -4000 );
-      targetSpeedL = constrain( targetSpeedL, -63000, -4000 );
+      mpu.update();
+      float error = (-mpu.getAngleY()) - targetAngle;
+      float derivative = (error - previousAngleError)*1000 / (micros() - mainLoopLastTime);
+      AngleIntegral = constrain( AngleIntegral + error, -150, 150);
+
+      int32_t correction = (int32_t)( kpB*error + kiB*AngleIntegral + kdB*derivative );
+
+      targetSpeedR = constrain( turningSpeedR + correction, -63000, 63000 );
+      targetSpeedL = constrain( turningSpeedL + correction, -63000, 63000 );
+    }
+    mainLoopLastTime = micros();
+    /*
+    if (abs(error) > burstAngle){
+      kiB = 300;
+      kpB = kpB*2;
+    }else{
+      kiB = oldkiB;
+      kpB = kpB/2;
     }
     */
-    mainLoopLastTime = micros();
-    //Serial.println(-mpu.getAngleY() - restAngle);
 
     // fail safe
-    
+    /*
     if(-mpu.getAngleY() - restAngle > 50 || -mpu.getAngleY() - restAngle < -40 ){
       esp_timer_stop(speedTimer);
       webSocket.broadcastTXT("0");
@@ -314,5 +318,6 @@ void loop() {
         delay(((i%4)*4 - 6 )*10 + 100);
       }
     }
+    */
   }
 }
