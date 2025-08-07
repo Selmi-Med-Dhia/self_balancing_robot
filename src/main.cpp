@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include <Wire.h>
 #include <MPU6050_light.h>
 #include "esp_timer.h"
