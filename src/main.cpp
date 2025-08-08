@@ -58,8 +58,9 @@ int32_t kpB = 1500; // 2000;
 int32_t kdB = 2000; // 300;
 int32_t kiB = 50; // 170;
 int32_t oldkiB = 50;
-int32_t burstAngle = 500;
-bool stopped = false;
+int32_t burstAngle = 5;
+int32_t x = 150;
+bool stopped = true;
 
 
 float previousAngleError = 0;
@@ -196,6 +197,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       burstAngle = message.substring(1).toInt();
     } else if (message[0] == 'S') {
       stopped = !stopped;
+    } else if (message[0] == 'X') {
+      x = message.substring(1).toInt()/100.0;
     }else{
       if (message[0] == 'R') {
         rightSlider = message.substring(1).toInt();
@@ -278,13 +281,17 @@ void loop() {
   webSocket.loop();
   if( micros() - mainLoopLastTime >= 1000){
     if (stopped){
-      speedLeft(0);
-      speedRight(0);
+      targetSpeedR = 0;
+      targetSpeedL = 0;
     }else{
       mpu.update();
       float error = (-mpu.getAngleY()) - targetAngle;
       float derivative = (error - previousAngleError)*1000 / (micros() - mainLoopLastTime);
-      AngleIntegral = constrain( AngleIntegral + error, -150, 150);
+      previousAngleError = error;
+      AngleIntegral = (abs(error)<burstAngle/10.0)? 0: constrain( AngleIntegral + error, -x, x);
+
+      // delinearization
+      //error = ((( (abs(error)+1)*(abs(error)+1) ) - 1 ) / 2 ) * (error < 0 ? -1 : 1);
 
       int32_t correction = (int32_t)( kpB*error + kiB*AngleIntegral + kdB*derivative );
 
