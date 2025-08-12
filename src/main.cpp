@@ -81,8 +81,8 @@ const char* password = "mo3adh likes balls";
 
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-IPAddress local_IP(192,168,9,171);
-IPAddress gateway(192,168,9,45);
+IPAddress local_IP(192,168,95,171);
+IPAddress gateway(192,168,95,66);
 IPAddress subnet(255,255,255,0);
 
 int leftSlider = 0;
@@ -279,7 +279,7 @@ void setup() {
 
 void loop() {
   webSocket.loop();
-  if( micros() - mainLoopLastTime >= 1000){
+  if( micros() - mainLoopLastTime >= 500){
     if (stopped){
       targetSpeedR = 0;
       targetSpeedL = 0;
@@ -291,7 +291,7 @@ void loop() {
       AngleIntegral = (abs(error)<burstAngle/10.0)? 0: constrain( AngleIntegral + error, -x, x);
 
       // delinearization
-      //error = ((( (abs(error)+1)*(abs(error)+1) ) - 1 ) / 2 ) * (error < 0 ? -1 : 1);
+      error = ((( (abs(error)/2.0+1)*(abs(error)/2.0+1) ) - 1 ) * 2 ) * (error < 0 ? -1 : 1);
 
       int32_t correction = (int32_t)( kpB*error + kiB*AngleIntegral + kdB*derivative );
 
