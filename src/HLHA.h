@@ -39,6 +39,7 @@ const int leds[] = {32, 13, 14, 27};
 // global constants
 const int minPWMR = 55;
 const int minPWML = 57;
+const int CPR = 404;
 
 //global variables
 extern bool ledstates[4];
