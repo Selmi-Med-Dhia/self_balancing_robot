@@ -39,12 +39,20 @@ const int leds[] = {32, 13, 14, 27};
 // global constants
 const int minPWMR = 55;
 const int minPWML = 57;
-const int CPR = 404;
+const int CPR = 202;
 
 //global variables
 extern bool ledstates[4];
 extern volatile int encoderRCount;
 extern volatile int encoderLCount;
+extern volatile int32_t speedCalculationPreviousTimeR;
+extern volatile int32_t speedCalculationCurrentTimeR;
+extern volatile int32_t speedCalculationPreviousTimeL;
+extern volatile int32_t speedCalculationCurrentTimeL;
+extern volatile int8_t directionR;
+extern volatile int8_t directionL;
+extern volatile float currentSpeedR;
+extern volatile float currentSpeedL;
 
 void speedRight(int pwm);
 void speedLeft(int pwm);

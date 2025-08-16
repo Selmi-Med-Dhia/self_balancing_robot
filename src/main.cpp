@@ -14,12 +14,8 @@
 TaskHandle_t speedUpdateTaskHandle;
 
 /// speed PID controller parameters
-volatile int32_t speedCalculationPreviousTime = 0;
-volatile int32_t speedCalculationCurrentTime = 0;
 volatile int32_t previousEncoderRCount = 0;
 volatile int32_t previousEncoderLCount = 0;
-volatile float currentSpeedR = 0;
-volatile float currentSpeedL = 0;
 volatile int32_t currentPWMR = 0;
 volatile int32_t currentPWML = 0;
 volatile float targetSpeedR = 0;
@@ -42,7 +38,17 @@ void speedUpdateTask(void *pvParameters) {
   const TickType_t xDelay = 1;
   TickType_t xLastWakeTime = xTaskGetTickCount();
   for(;;){
-    Serial.write((byte*)&currentSpeedL, sizeof(currentSpeedL));
+    // zeroing speed if no ticks were recently triggered
+    if ( ( (micros() - speedCalculationCurrentTimeR) > 19000 ) && (targetSpeedR == 0) ) {
+      currentSpeedR = 0;
+      currentPWMR = 0;
+    }
+    if ( ( (micros() - speedCalculationCurrentTimeL) > 19000 ) && (targetSpeedL == 0) ) {
+      currentSpeedL = 0;
+      currentPWML = 0;
+    }
+    
+    Serial.write((byte*)&currentSpeedR, sizeof(currentSpeedR));
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
 }
@@ -60,10 +66,11 @@ void setup() {
     &speedUpdateTaskHandle,
     1
   );
-  speedLeft(100);
+  speedRight(100);
 }
 
 void loop() {
+  /*
   if (micros() - speedCalculationPreviousTime >= 1000) {
     speedCalculationCurrentTime = micros();
     elapsedTime = speedCalculationCurrentTime - speedCalculationPreviousTime;
@@ -92,4 +99,5 @@ void loop() {
     previousEncoderRCount = encoderRCount;
     previousEncoderLCount = encoderLCount;
   }
+  */
 }
