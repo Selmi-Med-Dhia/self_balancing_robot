@@ -37,8 +37,8 @@ const int encoderLB = 4;
 const int leds[] = {32, 13, 14, 27};
 
 // global constants
-const int minPWMR = 55;
-const int minPWML = 57;
+const int minPWMR = 210;
+const int minPWML = 215;
 const int CPR = 202;
 
 //global variables

@@ -15,29 +15,29 @@ volatile float currentSpeedL;
 
 void speedRight(int pwm){
   if (abs(pwm) < minPWMR ){
-    analogWrite(motorRb, 0);
-    analogWrite(motorRa, 0);
+    ledcWrite(3, 0);
+    ledcWrite(2, 0);
   }
   else if( pwm > 0){
-    analogWrite(motorRb, 0);
-    analogWrite(motorRa, pwm);
+    ledcWrite(3, 0);
+    ledcWrite(2, pwm);
   }else{
-    analogWrite(motorRa, 0);
-    analogWrite(motorRb, abs(pwm));
+    ledcWrite(2, 0);
+    ledcWrite(3, abs(pwm));
   }
 }
 
 void speedLeft(int pwm){
   if (abs(pwm) < minPWML ){
-    analogWrite(motorLb, 0);
-    analogWrite(motorLa, 0);
+    ledcWrite(1, 0);
+    ledcWrite(0, 0);
   }
   else if( pwm > 0){
-    analogWrite(motorLb, 0);
-    analogWrite(motorLa, pwm);
+    ledcWrite(1, 0);
+    ledcWrite(0, pwm);
   }else{
-    analogWrite(motorLa, 0);
-    analogWrite(motorLb, abs(pwm));
+    ledcWrite(0, 0);
+    ledcWrite(1, abs(pwm));
   }
 }
 
@@ -109,6 +109,15 @@ void HLHAsetup() {
     pinMode(leds[i], OUTPUT);
     digitalWrite(leds[i], LOW);
   }
+
+  for(int i=0; i<4; i++){
+    ledcSetup(i, 20000, 10);
+  }
+  ledcAttachPin(motorLa, 0);
+  ledcAttachPin(motorLb, 1);
+  ledcAttachPin(motorRa, 2);
+  ledcAttachPin(motorRb, 3);
+
   speedCalculationCurrentTimeR = micros();
   speedCalculationPreviousTimeR = speedCalculationCurrentTimeR;
   speedCalculationCurrentTimeL = speedCalculationCurrentTimeR;
@@ -117,6 +126,7 @@ void HLHAsetup() {
   currentSpeedR = 0;
   directionR = 1;
   directionL = 1;
+
   attachInterrupt(digitalPinToInterrupt(encoderRA), encoderRISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderLA), encoderLISRA, CHANGE);
   //attachInterrupt(digitalPinToInterrupt(encoderRB), encoderRISRB, CHANGE);
