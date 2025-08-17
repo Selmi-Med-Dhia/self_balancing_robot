@@ -12,6 +12,7 @@
 #include "HLHA.h"
 /// tasks
 TaskHandle_t speedUpdateTaskHandle;
+TaskHandle_t AngleUpdateTaskHandle;
 
 /// speed PID controller parameters
 volatile int32_t previousEncoderRCount = 0;
@@ -34,6 +35,8 @@ const float kdS = 1200;
 const float kiS = 0.00015;
 
 /// balancing PID controller parameters
+volatile float currentAngle = 0;
+const float neutralAngle = 8.83;
 
 void speedUpdateTask(void *pvParameters) {
   const TickType_t xDelay = 1;
@@ -49,7 +52,16 @@ void speedUpdateTask(void *pvParameters) {
       currentPWML = 0;
     }
     
-    Serial.write((byte*)&currentSpeedR, sizeof(currentSpeedR));
+    Serial.write((byte*)&currentAngle, sizeof(currentAngle));
+    vTaskDelayUntil(&xLastWakeTime, xDelay);
+  }
+}
+
+void angleUpdateTask(void *pvParameters){
+  const TickType_t xDelay = 2;
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  for(;;){
+    currentAngle = getCurrentAngle() - neutralAngle;
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
 }
@@ -59,13 +71,23 @@ void setup() {
   HLHAsetup();
 
   xTaskCreatePinnedToCore(
+    angleUpdateTask, 
+    "angleUpdateTask", 
+    2048, 
+    NULL, 
+    4, 
+    &AngleUpdateTaskHandle,
+    1
+  );
+
+  xTaskCreatePinnedToCore(
     speedUpdateTask, 
     "SpeedUpdateTask", 
     2048, 
     NULL, 
     3, 
     &speedUpdateTaskHandle,
-    1
+    0
   );
 }
 

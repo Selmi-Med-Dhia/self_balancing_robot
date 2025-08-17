@@ -17,6 +17,8 @@
  */
 
 #include <Arduino.h>
+#include <Wire.h>
+#include <MPU6050_light.h>
 
 #define FAST_READ(pin) (((uint32_t)GPIO.in >> pin) & 0x1)      // pins 0–31
 #define FAST_READ1(pin) (((uint32_t)GPIO.in1.val >> ((pin) - 32)) & 0x1)
@@ -53,6 +55,8 @@ extern volatile int8_t directionR;
 extern volatile int8_t directionL;
 extern volatile float currentSpeedR;
 extern volatile float currentSpeedL;
+
+float getCurrentAngle();
 
 void speedRight(int pwm);
 void speedLeft(int pwm);

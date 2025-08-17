@@ -13,6 +13,13 @@ volatile int8_t directionL;
 volatile float currentSpeedR;
 volatile float currentSpeedL;
 
+MPU6050 mpu(Wire);
+
+float getCurrentAngle(){
+  mpu.update();
+  return (-mpu.getAccAngleY());
+}
+
 void speedRight(int pwm){
   if (abs(pwm) < minPWMR ){
     ledcWrite(3, 0);
@@ -105,11 +112,13 @@ void IRAM_ATTR encoderLISRB() {
 
 
 void HLHAsetup() {
+  // LEDs
   for(int i=0; i<4; i++){
     pinMode(leds[i], OUTPUT);
     digitalWrite(leds[i], LOW);
   }
 
+  // PWM channels
   for(int i=0; i<4; i++){
     ledcSetup(i, 20000, 10);
   }
@@ -118,6 +127,16 @@ void HLHAsetup() {
   ledcAttachPin(motorRa, 2);
   ledcAttachPin(motorRb, 3);
 
+  // MPU
+  Wire.begin(25, 26);
+
+  byte status = mpu.begin();
+  while (status != 0) {
+    delay(20);
+    status = mpu.begin();
+  }
+
+  // Global variables
   speedCalculationCurrentTimeR = micros();
   speedCalculationPreviousTimeR = speedCalculationCurrentTimeR;
   speedCalculationCurrentTimeL = speedCalculationCurrentTimeR;
@@ -127,6 +146,7 @@ void HLHAsetup() {
   directionR = 1;
   directionL = 1;
 
+  // Interrupts
   attachInterrupt(digitalPinToInterrupt(encoderRA), encoderRISRA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderLA), encoderLISRA, CHANGE);
   //attachInterrupt(digitalPinToInterrupt(encoderRB), encoderRISRB, CHANGE);
