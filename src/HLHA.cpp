@@ -12,8 +12,14 @@ volatile int8_t directionR;
 volatile int8_t directionL;
 volatile float currentSpeedR;
 volatile float currentSpeedL;
+const char* ssid = "lbor3i";
+const char* password = "lbor3i1234";
+LEDActionState ledActionState = LEDActionState::START_CLOCKWISE;
+LEDActionState defaultLedActionState = LEDActionState::START_CLOCKWISE;
 
 MPU6050 mpu(Wire);
+AsyncWebServer server(81);
+AsyncWebSocket ws("/ws");
 
 float getCurrentAngle(){
   mpu.update();
@@ -51,6 +57,20 @@ void speedLeft(int pwm){
 void toggleLED(int index){
     digitalWrite(leds[index], !ledstates[index]);
     ledstates[index] = !ledstates[index];
+}
+
+void turnOffLEDs(){
+  for(int i=0; i<4; i++){
+    digitalWrite(leds[i], 0);
+    ledstates[i] = false;
+  }
+}
+
+void turnOnLEDs(){
+  for(int i=0; i<4; i++){
+    digitalWrite(leds[i], 1);
+    ledstates[i] = true;
+  }
 }
 
 void IRAM_ATTR encoderRISRA() {
@@ -110,6 +130,19 @@ void IRAM_ATTR encoderLISRB() {
   }
 }
 
+void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *args, uint8_t *data, size_t len){
+  if (type == WS_EVT_CONNECT){
+    ledActionState = LEDActionState::BLINKING_2;
+  }else if (type == WS_EVT_DISCONNECT){
+    ledActionState = LEDActionState::START_CLOCKWISE;
+  }else if (type == WS_EVT_DATA){
+    String msg = "";
+    for (size_t i = 0; i < len; i++) {
+      msg += (char)data[i];
+    }
+    ledActionState = LEDActionState::BLINKING_1;
+  }
+}
 
 void HLHAsetup() {
   // LEDs
@@ -135,6 +168,12 @@ void HLHAsetup() {
     delay(20);
     status = mpu.begin();
   }
+
+  // Wifi
+  WiFi.softAP(ssid, password);
+  ws.onEvent(onWsEvent);
+  server.addHandler(&ws);
+  server.begin();
 
   // Global variables
   speedCalculationCurrentTimeR = micros();

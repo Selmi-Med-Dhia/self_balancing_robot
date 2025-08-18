@@ -19,8 +19,11 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <MPU6050_light.h>
+#include <WiFi.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
-#define FAST_READ(pin) (((uint32_t)GPIO.in >> pin) & 0x1)      // pins 0–31
+#define FAST_READ(pin) (((uint32_t)GPIO.in >> pin) & 0x1)
 #define FAST_READ1(pin) (((uint32_t)GPIO.in1.val >> ((pin) - 32)) & 0x1)
 
 // motor pins
@@ -36,12 +39,24 @@ const int encoderLA = 5;
 const int encoderLB = 4;
 
 // Leds' pins ordered clockwise
-const int leds[] = {32, 13, 14, 27};
+const int leds[] = {32, 27, 14, 13};
 
 // global constants
 const int minPWMR = 210;
 const int minPWML = 215;
 const int CPR = 202;
+
+//Enums
+enum class LEDActionState {
+  BLINKING_1,
+  BLINKING_2,
+  START_CLOCKWISE,
+  CLOCKWISE,
+  START_COUNTERCLOCKWISE,
+  COUNTERCLOCKWISE,
+  OFF,
+  ON
+};
 
 //global variables
 extern bool ledstates[4];
@@ -55,6 +70,13 @@ extern volatile int8_t directionR;
 extern volatile int8_t directionL;
 extern volatile float currentSpeedR;
 extern volatile float currentSpeedL;
+extern MPU6050 mpu;
+extern AsyncWebServer server;
+extern AsyncWebSocket ws;
+extern const char* ssid;
+extern const char* password;
+extern LEDActionState ledActionState;
+extern LEDActionState defaultLedActionState;
 
 float getCurrentAngle();
 
@@ -62,6 +84,8 @@ void speedRight(int pwm);
 void speedLeft(int pwm);
 
 void toggleLED(int index);
+void turnOffLEDs();
+void turnOnLEDs();
 
 void IRAM_ATTR encoderRISRA();
 void IRAM_ATTR encoderRISRB();

@@ -13,6 +13,7 @@
 /// tasks
 TaskHandle_t speedUpdateTaskHandle;
 TaskHandle_t AngleUpdateTaskHandle;
+TaskHandle_t LEDUpdateTaskHandle;
 
 /// speed PID controller parameters
 volatile int32_t previousEncoderRCount = 0;
@@ -52,7 +53,7 @@ void speedUpdateTask(void *pvParameters) {
       currentPWML = 0;
     }
     
-    Serial.write((byte*)&currentAngle, sizeof(currentAngle));
+    //Serial.write((byte*)&currentAngle, sizeof(currentAngle));
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
 }
@@ -63,6 +64,68 @@ void angleUpdateTask(void *pvParameters){
   for(;;){
     currentAngle = getCurrentAngle() - neutralAngle;
     vTaskDelayUntil(&xLastWakeTime, xDelay);
+  }
+}
+
+void LEDUpdateTask(void *pvParameters){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  for(;;){
+    if (ledActionState == LEDActionState::START_CLOCKWISE){
+      turnOffLEDs();
+      toggleLED(0);
+      ledActionState = LEDActionState::CLOCKWISE;
+      vTaskDelayUntil(&xLastWakeTime, 100);
+    }else if (ledActionState == LEDActionState::CLOCKWISE){
+      byte x = 0;
+      while (!ledstates[x] && x<4){ x++; };
+      if (x != 4){
+        toggleLED(x);
+      }
+      toggleLED((x+1)%4);
+      vTaskDelayUntil(&xLastWakeTime, 100);
+    }else if (ledActionState == LEDActionState::START_COUNTERCLOCKWISE){
+      turnOffLEDs();
+      toggleLED(0);
+      ledActionState = LEDActionState::COUNTERCLOCKWISE;
+      vTaskDelayUntil(&xLastWakeTime, 100);
+    }else if (ledActionState == LEDActionState::COUNTERCLOCKWISE){
+      byte x = 0;
+      while (!ledstates[x] && x<4){ x++; };
+      if (x != 4){
+        toggleLED(x);
+      }
+      toggleLED((x+3)%4);
+      vTaskDelayUntil(&xLastWakeTime, 100);
+    }else if (ledActionState == LEDActionState::BLINKING_2){
+      byte c = 0;
+      for(int i=0; i<4; i++){
+        c += ledstates[i];
+      }
+      if (c != 0 && c != 4){
+        turnOffLEDs();
+      }else if (c == 0){
+        turnOnLEDs();
+      }else if (c == 4){
+        turnOffLEDs();
+        ledActionState = LEDActionState::BLINKING_1;
+      }
+      vTaskDelayUntil(&xLastWakeTime, 300);
+    }else if (ledActionState == LEDActionState::BLINKING_1){
+      byte c = 0;
+      for(int i=0; i<4; i++){
+        c += ledstates[i];
+      }
+      if (c != 0 && c != 4){
+        turnOffLEDs();
+      }else if (c == 0){
+        turnOnLEDs();
+      }else if (c == 4){
+        turnOffLEDs();
+        ledActionState = defaultLedActionState;
+      }
+      vTaskDelayUntil(&xLastWakeTime, 300);
+    }
+      
   }
 }
 
@@ -77,6 +140,16 @@ void setup() {
     NULL, 
     4, 
     &AngleUpdateTaskHandle,
+    1
+  );
+
+  xTaskCreatePinnedToCore(
+    LEDUpdateTask, 
+    "LEDUpdateTask", 
+    2048, 
+    NULL, 
+    1, 
+    &LEDUpdateTaskHandle,
     1
   );
 
