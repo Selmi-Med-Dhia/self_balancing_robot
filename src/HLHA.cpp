@@ -17,13 +17,50 @@ const char* password = "lbor3i1234";
 LEDActionState ledActionState = LEDActionState::START_CLOCKWISE;
 LEDActionState defaultLedActionState = LEDActionState::START_CLOCKWISE;
 
+// Balancing PID controller variables
+float kpB = 10;
+float kdB = 0;
+float kiB = 0;
+float balancingIntergal = 0;
+float balancingIntegralLimit = 100;
+int32_t previousBalancingPIDTime = 0;
+float previousBalancingError = 0;
+
 MPU6050 mpu(Wire);
 AsyncWebServer server(81);
 AsyncWebSocket ws("/ws");
 
-float getCurrentAngle(){
+float getCurrentAngle() {
+  static float angle = 0.0f;
+  static uint32_t tprev = micros();
+
   mpu.update();
-  return (-mpu.getAccAngleY());
+  float ax = mpu.getAccX();
+  float ay = mpu.getAccY();
+  float az = mpu.getAccZ();
+  float gyroY = mpu.getGyroY();
+
+  uint32_t now = micros();
+  float dt = (now - tprev) * 1e-6f;
+  Serial.println((now - tprev));
+  tprev = now;
+
+  float accAngle = atan2f(-ax, az) * 57.2957795f;
+
+  
+  float anorm = sqrtf(ax*ax + ay*ay + az*az);
+  bool accelReliable = fabsf(anorm - 1.0f) < 0.15f;
+
+  const float alpha = 0.99f;
+  float gyroIntegrated = angle + gyroY * dt;
+
+  if (accelReliable) {
+    angle = alpha * gyroIntegrated + (1.0f - alpha) * accAngle;
+  } else {
+    angle = gyroIntegrated;
+  }
+
+  return -angle;
 }
 
 void speedRight(int pwm){
@@ -139,6 +176,16 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     String msg = "";
     for (size_t i = 0; i < len; i++) {
       msg += (char)data[i];
+    }
+    if (msg[0] == 'P'){
+      kpB = msg.substring(1).toInt();
+    }else if (msg[0] == 'I'){
+      kiB = msg.substring(1).toInt()/100.0;
+    }else if (msg[0] == 'D'){
+      kdB = msg.substring(1).toInt();
+    }
+    else if (msg[0] == 'X'){
+      balancingIntegralLimit = msg.substring(1).toInt();
     }
     ledActionState = LEDActionState::BLINKING_1;
   }

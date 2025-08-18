@@ -43,17 +43,8 @@ void speedUpdateTask(void *pvParameters) {
   const TickType_t xDelay = 1;
   TickType_t xLastWakeTime = xTaskGetTickCount();
   for(;;){
-    // zeroing speed if no ticks were recently triggered
-    if ( ( (micros() - speedCalculationCurrentTimeR) > 19000 ) && (targetSpeedR == 0) ) {
-      currentSpeedR = 0;
-      currentPWMR = 0;
-    }
-    if ( ( (micros() - speedCalculationCurrentTimeL) > 19000 ) && (targetSpeedL == 0) ) {
-      currentSpeedL = 0;
-      currentPWML = 0;
-    }
-    
-    //Serial.write((byte*)&currentAngle, sizeof(currentAngle));
+    float x = (float)currentAngle;
+    Serial.write((byte*)&x, sizeof(x));
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
 }
@@ -63,6 +54,31 @@ void angleUpdateTask(void *pvParameters){
   TickType_t xLastWakeTime = xTaskGetTickCount();
   for(;;){
     currentAngle = getCurrentAngle() - neutralAngle;
+
+    // zeroing speed if no ticks were recently triggered
+    if ( ( (micros() - speedCalculationCurrentTimeR) > 10000 ) && (targetSpeedR == 0) ) {
+      currentSpeedR = 0;
+      currentPWMR = 0;
+    }
+    if ( ( (micros() - speedCalculationCurrentTimeL) > 10000 ) && (targetSpeedL == 0) ) {
+      currentSpeedL = 0;
+      currentPWML = 0;
+    }
+
+    // PID control for balancing
+    float derivative = (currentAngle - previousBalancingError)*1000 / (micros() - previousBalancingPIDTime);
+    previousBalancingError = currentAngle;
+    balancingIntergal = (fabs(currentAngle) < 1)? 0 : constrain( balancingIntergal + currentAngle, -balancingIntegralLimit, balancingIntegralLimit);
+
+    // delinearization
+    //error = ((( (abs(error)/2.0+1)*(abs(error)/2.0+1) ) - 1 ) * 2 ) * (error < 0 ? -1 : 1);
+
+    float correction = kpB*currentAngle + kiB*balancingIntergal + kdB*derivative;
+
+    targetSpeedR = constrain( correction, -630, 630 );
+    targetSpeedL = targetSpeedR;
+    previousBalancingPIDTime = micros();
+
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
 }
@@ -124,6 +140,14 @@ void LEDUpdateTask(void *pvParameters){
         ledActionState = defaultLedActionState;
       }
       vTaskDelayUntil(&xLastWakeTime, 300);
+    }
+    else if (ledActionState == LEDActionState::OFF){
+      turnOffLEDs();
+      vTaskDelayUntil(&xLastWakeTime, 500);
+    }
+    else if (ledActionState == LEDActionState::ON){
+      turnOnLEDs();
+      vTaskDelayUntil(&xLastWakeTime, 500);
     }
       
   }

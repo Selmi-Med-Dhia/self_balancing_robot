@@ -78,6 +78,15 @@ extern const char* password;
 extern LEDActionState ledActionState;
 extern LEDActionState defaultLedActionState;
 
+// Balancing PID controller variables
+extern float kpB;
+extern float kdB;
+extern float kiB;
+extern float balancingIntergal;
+extern float balancingIntegralLimit;
+extern int32_t previousBalancingPIDTime;
+extern float previousBalancingError;
+
 float getCurrentAngle();
 
 void speedRight(int pwm);
