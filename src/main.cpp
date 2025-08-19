@@ -11,7 +11,7 @@
 
 #include "HLHA.h"
 /// tasks
-TaskHandle_t speedUpdateTaskHandle;
+TaskHandle_t centeringTaskHandle;
 TaskHandle_t AngleUpdateTaskHandle;
 TaskHandle_t LEDUpdateTaskHandle;
 
@@ -37,14 +37,31 @@ const float kiS = 0.00015;
 
 /// balancing PID controller parameters
 volatile float currentAngle = 0;
-const float neutralAngle = 8.80;
+volatile float neutralAngle = 8.80;
 
-void speedUpdateTask(void *pvParameters) {
+volatile float filteredDerivative = 0;
+
+void centeringTask(void *pvParameters) {
   const TickType_t xDelay = 1;
   TickType_t xLastWakeTime = xTaskGetTickCount();
   for(;;){
-    float x = (float)currentSpeedL;
-    //Serial.write((byte*)&x, sizeof(x));
+
+    float error = (followPoint - encoderLCount)/((float)CPR);
+    if (abs(error) > deadzone){
+      float derivative = (error - previousFollowingError)*1000 / (micros() - previousFollowingPIDTime);
+      filteredDerivative = 0.85f * filteredDerivative + 0.15f * derivative;
+      followingIntegral = constrain( followingIntegral + error, -followingIntegralLimit, followingIntegralLimit);
+
+      neutralAngle = 8.80 + kpF*error + kiF*followingIntegral + kdF*filteredDerivative - currentSpeedL * ksF;
+    }else{
+      neutralAngle = 8.80;
+      followingIntegral = 0;
+    }
+    previousFollowingError = error;
+    previousFollowingPIDTime = micros();
+
+    float x = (float)neutralAngle;
+    Serial.write((byte*)&x, sizeof(x));
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
 }
@@ -179,12 +196,12 @@ void setup() {
   );
 
   xTaskCreatePinnedToCore(
-    speedUpdateTask, 
-    "SpeedUpdateTask", 
+    centeringTask, 
+    "CenteringTask", 
     2048, 
     NULL, 
     3, 
-    &speedUpdateTaskHandle,
+    &centeringTaskHandle,
     0
   );
 }

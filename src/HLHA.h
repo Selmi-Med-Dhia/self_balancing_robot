@@ -87,6 +87,18 @@ extern float balancingIntegralLimit;
 extern int32_t previousBalancingPIDTime;
 extern float previousBalancingError;
 
+// Following PID controller variables
+extern int32_t followPoint;
+extern float kpF;
+extern float kdF;
+extern float kiF;
+extern float ksF;
+extern float deadzone;
+extern float followingIntegral;
+extern int32_t followingIntegralLimit;
+extern int32_t previousFollowingPIDTime;
+extern float previousFollowingError;
+
 float getCurrentAngle();
 
 void speedRight(int pwm);

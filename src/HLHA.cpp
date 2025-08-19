@@ -26,6 +26,18 @@ float balancingIntegralLimit = 1000;
 int32_t previousBalancingPIDTime = 0;
 float previousBalancingError = 0;
 
+// Following PID controller variables
+int32_t followPoint = 0;
+float kpF = 0.5;
+float kdF = 0.1;
+float kiF = 0;
+float ksF = 0;
+float deadzone = 0;
+float followingIntegral = 0;
+int32_t followingIntegralLimit = 20;
+int32_t previousFollowingPIDTime = 0;
+float previousFollowingError = 0;
+
 MPU6050 mpu(Wire);
 AsyncWebServer server(81);
 AsyncWebSocket ws("/ws");
@@ -177,14 +189,19 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
       msg += (char)data[i];
     }
     if (msg[0] == 'P'){
-      kpB = msg.substring(1).toInt();
+      kpF = msg.substring(1).toInt()/100.0;
     }else if (msg[0] == 'I'){
-      kiB = msg.substring(1).toInt()/100.0;
+      kiF = msg.substring(1).toInt()/100.0;
     }else if (msg[0] == 'D'){
-      kdB = msg.substring(1).toInt();
-    }
-    else if (msg[0] == 'X'){
-      balancingIntegralLimit = msg.substring(1).toInt();
+      kdF = msg.substring(1).toInt()/100.0;
+    }else if (msg[0] == 'X'){
+      followingIntegralLimit = msg.substring(1).toInt();
+    }else if (msg[0] == 'B'){
+      deadzone = msg.substring(1).toInt()/100.0;
+    }else if (msg[0] == 'S'){
+      ksF = msg.substring(1).toInt()/10000.0;
+    }else if (msg[0] == 'A'){
+      followPoint = encoderLCount;
     }
     ledActionState = LEDActionState::BLINKING_1;
   }
