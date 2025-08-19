@@ -18,9 +18,9 @@ LEDActionState ledActionState = LEDActionState::START_CLOCKWISE;
 LEDActionState defaultLedActionState = LEDActionState::START_CLOCKWISE;
 
 // Balancing PID controller variables
-float kpB =60;
-float kdB = 700;
-float kiB = 50;
+float kpB =50;
+float kdB = 1000;
+float kiB = 0.1;
 float balancingIntergal = 0;
 float balancingIntegralLimit = 1000;
 int32_t previousBalancingPIDTime = 0;

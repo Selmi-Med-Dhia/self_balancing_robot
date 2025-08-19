@@ -43,7 +43,7 @@ void speedUpdateTask(void *pvParameters) {
   const TickType_t xDelay = 1;
   TickType_t xLastWakeTime = xTaskGetTickCount();
   for(;;){
-    float x = (float)targetSpeedL;
+    float x = (float)currentSpeedL;
     //Serial.write((byte*)&x, sizeof(x));
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
@@ -64,16 +64,17 @@ void angleUpdateTask(void *pvParameters){
       currentSpeedL = 0;
       currentPWML = 0;
     }
-
+    // TODO: add a go to point that offsets the neutral angle so it falls back to it
+    
     // PID control for balancing
     float derivative = (currentAngle - previousBalancingError)*1000 / (micros() - previousBalancingPIDTime);
     previousBalancingError = currentAngle;
     balancingIntergal = (fabs(currentAngle) < 0.05)? 0 : constrain( balancingIntergal + currentAngle, -balancingIntegralLimit, balancingIntegralLimit);
 
     // delinearization
-    //error = ((( (abs(error)/2.0+1)*(abs(error)/2.0+1) ) - 1 ) * 2 ) * (error < 0 ? -1 : 1);
+    float error = ((( (abs(currentAngle)/2.0+1)*(abs(currentAngle)/2.0+1) ) - 1 ) * 2 ) * (currentAngle < 0 ? -1 : 1);
 
-    float correction = kpB*currentAngle + kiB*balancingIntergal + kdB*derivative;
+    float correction = kpB*error + kiB*balancingIntergal + kdB*derivative;
 
     targetSpeedR = constrain( correction, -630, 630 );
     targetSpeedL = targetSpeedR;
