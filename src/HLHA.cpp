@@ -18,11 +18,11 @@ LEDActionState ledActionState = LEDActionState::START_CLOCKWISE;
 LEDActionState defaultLedActionState = LEDActionState::START_CLOCKWISE;
 
 // Balancing PID controller variables
-float kpB = 10;
-float kdB = 0;
-float kiB = 0;
+float kpB =60;
+float kdB = 700;
+float kiB = 50;
 float balancingIntergal = 0;
-float balancingIntegralLimit = 100;
+float balancingIntegralLimit = 1000;
 int32_t previousBalancingPIDTime = 0;
 float previousBalancingError = 0;
 
@@ -42,7 +42,6 @@ float getCurrentAngle() {
 
   uint32_t now = micros();
   float dt = (now - tprev) * 1e-6f;
-  Serial.println((now - tprev));
   tprev = now;
 
   float accAngle = atan2f(-ax, az) * 57.2957795f;

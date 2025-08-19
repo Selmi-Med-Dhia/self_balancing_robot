@@ -37,14 +37,14 @@ const float kiS = 0.00015;
 
 /// balancing PID controller parameters
 volatile float currentAngle = 0;
-const float neutralAngle = 8.83;
+const float neutralAngle = 8.80;
 
 void speedUpdateTask(void *pvParameters) {
   const TickType_t xDelay = 1;
   TickType_t xLastWakeTime = xTaskGetTickCount();
   for(;;){
-    float x = (float)currentAngle;
-    Serial.write((byte*)&x, sizeof(x));
+    float x = (float)targetSpeedL;
+    //Serial.write((byte*)&x, sizeof(x));
     vTaskDelayUntil(&xLastWakeTime, xDelay);
   }
 }
@@ -68,7 +68,7 @@ void angleUpdateTask(void *pvParameters){
     // PID control for balancing
     float derivative = (currentAngle - previousBalancingError)*1000 / (micros() - previousBalancingPIDTime);
     previousBalancingError = currentAngle;
-    balancingIntergal = (fabs(currentAngle) < 1)? 0 : constrain( balancingIntergal + currentAngle, -balancingIntegralLimit, balancingIntegralLimit);
+    balancingIntergal = (fabs(currentAngle) < 0.05)? 0 : constrain( balancingIntergal + currentAngle, -balancingIntegralLimit, balancingIntegralLimit);
 
     // delinearization
     //error = ((( (abs(error)/2.0+1)*(abs(error)/2.0+1) ) - 1 ) * 2 ) * (error < 0 ? -1 : 1);
@@ -174,7 +174,7 @@ void setup() {
     NULL, 
     1, 
     &LEDUpdateTaskHandle,
-    1
+    0
   );
 
   xTaskCreatePinnedToCore(
